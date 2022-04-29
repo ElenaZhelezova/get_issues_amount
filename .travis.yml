@@ -1,0 +1,42 @@
+---
+language: python
+python:
+  - 3.9
+
+before_install:
+  - python -m pip install --upgrade pip
+
+install:
+  - pip install -r requirements.txt
+
+branches:
+  only:
+    - master
+    - develop
+
+jobs:
+  include:
+    - stage: testing script for PEP8
+      script:
+        - flake8 get_issues.py
+
+#    - stage: testing with test_resources file
+#      before_script: git clone https://github.com/devopshq/tfs.git
+#      script: pytest tfs/tests/test_resources.py
+
+    - stage: build and test docker image
+      script:
+        - docker build --build-arg A_USERNAME=$usr --build-arg A_TOKEN=$tok -t $DOCKER_USERNAME/devopshq:$TRAVIS_BUILD_NUMBER .
+        - docker run --rm $DOCKER_USERNAME/devopshq:$TRAVIS_BUILD_NUMBER
+
+    - stage: build and push docker container to docker hub
+      script:
+        - docker build --build-arg A_USERNAME=$usr --build-arg A_TOKEN=$tok -t $DOCKER_USERNAME/devopshq:latest -t $DOCKER_USERNAME/devopshq:$TRAVIS_BUILD_NUMBER .
+        - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+        - docker push $DOCKER_USERNAME/devopshq:latest
+        - docker push $DOCKER_USERNAME/devopshq:$TRAVIS_BUILD_NUMBER
+
+    - stage: run latest docker container
+      script:
+        - docker pull $DOCKER_USERNAME/devopshq:latest
+        - docker run --rm $DOCKER_USERNAME/devopshq:latest
